@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Basket Random Unblocked - ubg235 GameDistribution</title>
+<title>Basket Random - Online Multiplayer</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
 
 <meta name="generator" content="Construct 3">
@@ -11,6 +11,7 @@
 
 
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="mp-ui.css">
 
 <script>
 window.addEventListener("keydown", function(e) {
@@ -36,5 +37,21 @@ window.addEventListener("keydown", function(e) {
 	<script src="scripts/offlineclient.js"></script>
 	<script src="scripts/main.js"></script>
 	<script src="scripts/register-sw.js"></script>
+
+	<!-- PeerJS Library (CDN) -->
+	<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+	<!-- Multiplayer System -->
+	<script src="mp-runtime.js"></script>
+	<script src="mp-sync.js"></script>
+	<script src="mp-network.js"></script>
+	<script src="mp-game.js"></script>
+	<script src="mp-ui.js"></script>
+
+	<script>
+	// Initialize multiplayer system
+	MPRuntime.init();
+	MPUI.init();
+	</script>
 </body>
 </html>
