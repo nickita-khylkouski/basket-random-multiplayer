@@ -12,6 +12,12 @@
   color: white;
 }
 
+/* Block all canvas interaction when lobby/waiting screen is active */
+#mp-overlay.mp-blocking {
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.5);
+}
+
 #mp-overlay * {
   box-sizing: border-box;
 }

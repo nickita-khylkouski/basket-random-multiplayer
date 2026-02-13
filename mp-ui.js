@@ -66,6 +66,45 @@ const MPUI = {
     this._bindEvents();
   },
 
+  // --- Block/unblock game canvas ---
+  // When lobby is open, block ALL interaction with the game behind it
+  _blockGame() {
+    this._el.classList.add('mp-blocking');
+    // Freeze the game by setting pause
+    if (MPRuntime._ready) {
+      MPRuntime.setVar('pause', 1);
+    }
+  },
+
+  _unblockGame() {
+    this._el.classList.remove('mp-blocking');
+    if (MPRuntime._ready) {
+      MPRuntime.setVar('pause', 0);
+    }
+  },
+
+  // Programmatically start a 2-player game match
+  // Replicates what happens when the user clicks startButton2
+  _triggerGameStart() {
+    if (!MPRuntime._ready) return;
+
+    // Set 2P mode
+    MPRuntime.cpu = 0;
+
+    // Trigger game start (menu=5 transitions from menu to gameplay)
+    MPRuntime.setVar('menu', 5);
+
+    // Initialize game state after a short delay (game needs time to transition)
+    setTimeout(() => {
+      MPRuntime.setVar('goal', 4);
+      MPRuntime.setVar('p1Score', 0);
+      MPRuntime.setVar('p2Score', 0);
+      MPRuntime.setVar('P1Control', 4); // 4 = released
+      MPRuntime.setVar('P2Control', 4);
+      MPRuntime.setVar('pause', 0); // Unpause
+    }, 200);
+  },
+
   _bindEvents() {
     // Play Online button
     document.getElementById('mp-play-btn').addEventListener('click', () => {
@@ -75,6 +114,7 @@ const MPUI = {
     // Back button
     document.getElementById('mp-back-btn').addEventListener('click', () => {
       this.hideLobby();
+      this._unblockGame();
       MPGame.stop();
     });
 
@@ -127,7 +167,6 @@ const MPUI = {
         btn.textContent = 'Copied!';
         setTimeout(() => { btn.textContent = 'Copy Link'; }, 2000);
       }).catch(() => {
-        // Fallback: select text
         prompt('Copy this link:', link);
       });
     });
@@ -136,8 +175,8 @@ const MPUI = {
     document.getElementById('mp-disconnect-ok').addEventListener('click', () => {
       this.hideDisconnect();
       this.hideLobby();
+      this._unblockGame();
       MPGame.stop();
-      // Reload to get back to clean state
       window.location.hash = '';
       window.location.reload();
     });
@@ -158,14 +197,23 @@ const MPUI = {
 
     try {
       await MPNetwork.joinRoom(code);
-      // Connected! Start as client
+      // Connected! Hide lobby, start game, start client mode
       this.hideLobby();
       this._showStatus('connected');
       this._startPingDisplay();
 
-      // Start client game mode
+      MPNetwork.onDisconnect(() => {
+        this.showDisconnect();
+      });
+
+      // Start as client — trigger game start then begin syncing
       MPRuntime.onReady(() => {
-        MPGame.startAsClient();
+        this._triggerGameStart();
+        // Small delay to let game initialize, then start client sync
+        setTimeout(() => {
+          this._unblockGame();
+          MPGame.startAsClient();
+        }, 500);
       });
     } catch (e) {
       btn.disabled = false;
@@ -190,13 +238,17 @@ const MPUI = {
     this._showStatus('connected');
     this._startPingDisplay();
 
-    // Wait a moment then hide lobby and start game
+    // Wait a moment, then start the actual 2P game
     setTimeout(() => {
       this.hideLobby();
       MPRuntime.onReady(() => {
-        // Host clicks the 2P start button programmatically
-        MPRuntime.cpu = 0;
-        MPGame.startAsHost();
+        // Trigger the game start sequence (same as clicking 2P button)
+        this._triggerGameStart();
+        // Small delay to let game initialize, then start host sync
+        setTimeout(() => {
+          this._unblockGame();
+          MPGame.startAsHost();
+        }, 500);
       });
     }, 1000);
   },
@@ -213,6 +265,7 @@ const MPUI = {
 
   showLobby() {
     this.hidePlayButton();
+    this._blockGame(); // Freeze game + block canvas
     document.getElementById('mp-lobby').style.display = 'block';
     document.getElementById('mp-lobby-main').style.display = 'flex';
     document.getElementById('mp-join-section').style.display = 'none';
@@ -236,6 +289,7 @@ const MPUI = {
 
   showDisconnect() {
     document.getElementById('mp-disconnect').style.display = 'flex';
+    this._el.classList.add('mp-blocking'); // Block game behind disconnect modal
     this._showStatus('disconnected');
     this._stopPingDisplay();
   },
@@ -286,11 +340,11 @@ const MPUI = {
       // Periodically check if we're on menu and show/hide button
       setInterval(() => {
         const menu = MPRuntime.menu;
-        if (menu === 5 && MPGame.mode === null) {
-          // Menu is showing
+        if (menu !== 5 && MPGame.mode === null) {
+          // Menu is showing (not in-game)
           document.getElementById('mp-play-btn').style.display = 'block';
         } else if (MPGame.mode !== null) {
-          // In multiplayer game
+          // In multiplayer game — hide play button
           document.getElementById('mp-play-btn').style.display = 'none';
         }
       }, 500);
@@ -302,12 +356,12 @@ const MPUI = {
     const code = MPNetwork.getRoomFromURL();
     if (code) {
       console.log('[MP-UI] Auto-joining room from URL:', code);
-      // Wait for runtime, then auto-join
       MPRuntime.onReady(() => {
         setTimeout(() => {
+          this.showLobby(); // This will block the game
           document.getElementById('mp-join-input').value = code;
           this._doJoin();
-        }, 1500); // Wait for game to finish loading
+        }, 1500);
       });
     }
   },
